@@ -32,6 +32,15 @@ export default function Home({ cart, setCart }) {
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
+      <div className="flex justify-end mb-4">
+        <a
+          href="/cart"
+          className="text-blue-600 font-semibold hover:underline"
+        >
+          View Cart ({cart.length})
+        </a>
+      </div>
+
       <h1 className="text-3xl font-bold mb-6 text-center">
         Ministore Products
       </h1>
