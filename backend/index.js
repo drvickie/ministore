@@ -10,6 +10,10 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.status(200).send("Ministore backend is running");
 });
+app.get("/products", (req, res) => {
+  res.status(200).json(products);
+});
+
 
 const PORT = 5001;
 app.listen(PORT, () => {
