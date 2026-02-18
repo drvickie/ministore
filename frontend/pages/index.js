@@ -23,11 +23,12 @@ export default function Home() {
             key={product.id}
             className="bg-white rounded-lg shadow p-4"
           >
-            <div className="h-40 bg-gray-200 mb-4 flex items-center justify-center">
-              <span className="text-gray-500 text-sm">
-                Image Placeholder
-              </span>
-            </div>
+            <img
+              src={product.image}
+              alt={product.name}
+              className="h-40 w-full object-cover rounded mb-4"
+            />
+
 
             <h2 className="text-lg font-semibold">{product.name}</h2>
             <p className="text-gray-600 text-sm mt-1">
