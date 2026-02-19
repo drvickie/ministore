@@ -44,6 +44,25 @@ export default function Cart({ cart, setCart }) {
       </div>
     );
   }
+  const handleCheckout = async () => {
+    const response = await fetch(
+      "http://localhost:5001/create-checkout-session",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cart,
+          vatAmount,
+        }),
+      }
+    );
+
+    const data = await response.json();
+    window.location.href = data.url;
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
@@ -118,6 +137,13 @@ export default function Cart({ cart, setCart }) {
           <span>${total.toFixed(2)}</span>
         </div>
       </div>
+      <button
+        onClick={handleCheckout}
+        className="mt-6 w-full bg-green-600 text-white py-3 rounded text-lg hover:bg-green-700"
+      >
+        Proceed to Checkout
+      </button>
+
     </div>
   );
 }
