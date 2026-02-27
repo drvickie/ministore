@@ -1,22 +1,37 @@
-import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
-
 export default function Home({ cart, setCart }) {
-  const [products, setProducts] = useState([]);
+  const router = useRouter();
+  const { search } = router.query;
 
-  useEffect(() => {
-    fetch("http://localhost:5001/products")
-      .then((res) => res.json())
-      .then((data) => {
-        setProducts(data);
-      });
-  }, []);
+  const products = [
+    {
+      id: 1,
+      name: "Laptop",
+      price: 1000,
+      image: "/images/laptop.jpg",
+    },
+    {
+      id: 2,
+      name: "Headphones",
+      price: 200,
+      image: "/images/headphones.jpg",
+    },
+    {
+      id: 3,
+      name: "Keyboard",
+      price: 150,
+      image: "/images/keyboard.jpg",
+    },
+  ];
+
+  const getQuantity = (id) => {
+    const item = cart.find((item) => item.id === id);
+    return item ? item.quantity : 0;
+  };
 
   const addToCart = (product) => {
-    const existingItem = cart.find(
-      (item) => item.id === product.id
-    );
+    const existingItem = cart.find((item) => item.id === product.id);
 
     if (existingItem) {
       const updatedCart = cart.map((item) =>
@@ -35,9 +50,7 @@ export default function Home({ cart, setCart }) {
   };
 
   const decreaseQuantity = (product) => {
-    const existingItem = cart.find(
-      (item) => item.id === product.id
-    );
+    const existingItem = cart.find((item) => item.id === product.id);
 
     if (!existingItem) return;
 
@@ -53,86 +66,72 @@ export default function Home({ cart, setCart }) {
     }
   };
 
-  const getProductQuantity = (productId) => {
-    const item = cart.find((item) => item.id === productId);
-    return item ? item.quantity : 0;
-  };
-
   return (
     <div className="min-h-screen bg-gray-100 p-6">
-      <div className="flex justify-end mb-4">
-        <a
-          href="/cart"
-          className="text-blue-600 font-semibold hover:underline"
-        >
-          View Cart ({cart.length})
-        </a>
-      </div>
-
-      <h1 className="text-3xl font-bold mb-6 text-center">
-        Ministore Products
+      <h1 className="text-3xl font-bold mb-6">
+        Products
       </h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {products.map((product) => (
-          <div
-            key={product.id}
-            className="bg-white rounded-lg shadow p-4"
-          >
-            <img
-              src={product.image}
-              alt={product.name}
-              className="h-40 w-full object-cover rounded mb-4"
-            />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {products
+          .filter((product) =>
+            search
+              ? product.name
+                  .toLowerCase()
+                  .includes(search.toLowerCase())
+              : true
+          )
+          .map((product) => (
+            <div
+              key={product.id}
+              className="bg-white p-4 rounded shadow"
+            >
+              <img
+                src={product.image}
+                alt={product.name}
+                className="h-40 w-full object-cover rounded"
+              />
 
-            <h2 className="text-lg font-semibold">
-              {product.name}
-            </h2>
+              <h2 className="text-lg font-semibold mt-3">
+                {product.name}
+              </h2>
 
-            <p className="text-gray-600 text-sm mt-1">
-              {product.description}
-            </p>
+              {/* Price + Quantity Controls (same line) */}
+              <div className="flex justify-between items-center mt-2">
+                <p className="text-blue-600 font-bold">
+                  ${product.price}
+                </p>
 
-            {/* Price + Quantity Row */}
-            <div className="flex items-center justify-between mt-3">
-              <p className="text-blue-600 font-bold">
-                ${product.price}
-              </p>
-
-              {getProductQuantity(product.id) > 0 && (
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => decreaseQuantity(product)}
-                    className="px-3 py-1 bg-gray-300 rounded text-lg"
+                    className="px-3 py-1 bg-gray-300 rounded"
                   >
                     −
                   </button>
 
                   <span className="font-semibold">
-                    {getProductQuantity(product.id)}
+                    {getQuantity(product.id)}
                   </span>
 
                   <button
                     onClick={() => increaseQuantity(product)}
-                    className="px-3 py-1 bg-gray-300 rounded text-lg"
+                    className="px-3 py-1 bg-gray-300 rounded"
                   >
                     +
                   </button>
                 </div>
-              )}
-            </div>
+              </div>
 
-            {/* Add to Cart Button */}
-            <div className="mt-4">
+              {/* Add to Cart Button (Underneath) */}
               <button
                 onClick={() => addToCart(product)}
-                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+                className="mt-4 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
               >
                 Add to Cart
               </button>
             </div>
-          </div>
-        ))}
+          ))}
       </div>
     </div>
   );
