@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+
 
 export default function Home({ cart, setCart }) {
   const [products, setProducts] = useState([]);

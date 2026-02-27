@@ -1,4 +1,10 @@
+import { useEffect } from "react";
+
 export default function Success() {
+  useEffect(() => {
+    localStorage.removeItem("cart");
+  }, []);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-6 rounded shadow text-center">

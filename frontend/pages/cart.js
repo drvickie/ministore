@@ -1,4 +1,7 @@
+import { useRouter } from "next/router";
+
 export default function Cart({ cart, setCart }) {
+  const router = useRouter();
   const VAT_RATE = 0.075;
 
   const increaseQuantity = (item) => {
@@ -23,27 +26,18 @@ export default function Cart({ cart, setCart }) {
     }
   };
 
-  // Subtotal (before VAT)
+  const removeItem = (id) => {
+    setCart(cart.filter((item) => item.id !== id));
+  };
+
   const subtotal = cart.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
 
-  // VAT amount
   const vatAmount = subtotal * VAT_RATE;
-
-  // Final total
   const total = subtotal + vatAmount;
 
-  if (cart.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <h1 className="text-xl font-semibold">
-          Your cart is empty
-        </h1>
-      </div>
-    );
-  }
   const handleCheckout = async () => {
     const response = await fetch(
       "http://localhost:5001/create-checkout-session",
@@ -52,10 +46,7 @@ export default function Cart({ cart, setCart }) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          cart,
-          vatAmount,
-        }),
+        body: JSON.stringify({ cart, vatAmount }),
       }
     );
 
@@ -63,6 +54,21 @@ export default function Cart({ cart, setCart }) {
     window.location.href = data.url;
   };
 
+  if (cart.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 gap-4">
+        <h1 className="text-xl font-semibold">
+          Your cart is empty
+        </h1>
+        <button
+          onClick={() => router.push("/")}
+          className="bg-blue-600 text-white px-4 py-2 rounded"
+        >
+          Back to Store
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
@@ -90,6 +96,13 @@ export default function Cart({ cart, setCart }) {
                   Product Total: $
                   {(item.price * item.quantity).toFixed(2)}
                 </p>
+
+                <button
+                  onClick={() => removeItem(item.id)}
+                  className="text-red-600 text-sm mt-2 hover:underline"
+                >
+                  Remove
+                </button>
               </div>
 
               <div className="flex items-center gap-3">
@@ -116,17 +129,14 @@ export default function Cart({ cart, setCart }) {
         ))}
       </div>
 
-      {/* Price Summary */}
       <div className="mt-6 bg-white p-4 rounded shadow space-y-2">
         <div className="flex justify-between">
-          <span className="font-medium">Subtotal</span>
+          <span>Subtotal</span>
           <span>${subtotal.toFixed(2)}</span>
         </div>
 
         <div className="flex justify-between">
-          <span className="font-medium">
-            VAT (7.5%)
-          </span>
+          <span>VAT (7.5%)</span>
           <span>${vatAmount.toFixed(2)}</span>
         </div>
 
@@ -137,6 +147,7 @@ export default function Cart({ cart, setCart }) {
           <span>${total.toFixed(2)}</span>
         </div>
       </div>
+
       <button
         onClick={handleCheckout}
         className="mt-6 w-full bg-green-600 text-white py-3 rounded text-lg hover:bg-green-700"
@@ -144,6 +155,12 @@ export default function Cart({ cart, setCart }) {
         Proceed to Checkout
       </button>
 
+      <button
+        onClick={() => router.push("/")}
+        className="mt-3 w-full bg-blue-600 text-white py-2 rounded"
+      >
+        Back to Store
+      </button>
     </div>
   );
 }
