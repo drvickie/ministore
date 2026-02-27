@@ -71,7 +71,7 @@ const products = [
   },
   {
     id: 11,
-    name: "Microfiber Cleaning Cloth (6 pack)",
+    name: "Microfiber Cleaning (6 pack)",
     price: 15,
     description: "Reusable microfiber cloths for cleaning",
     image: "/images/cloth.jpeg"
