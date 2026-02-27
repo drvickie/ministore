@@ -1,29 +1,19 @@
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
 export default function Home({ cart, setCart }) {
   const router = useRouter();
   const { search } = router.query;
 
-  const products = [
-    {
-      id: 1,
-      name: "Laptop",
-      price: 1000,
-      image: "/images/laptop.jpg",
-    },
-    {
-      id: 2,
-      name: "Headphones",
-      price: 200,
-      image: "/images/headphones.jpg",
-    },
-    {
-      id: 3,
-      name: "Keyboard",
-      price: 150,
-      image: "/images/keyboard.jpg",
-    },
-  ];
+  const [products, setProducts] = useState([]);
+
+  // ✅ Fetch products from backend
+  useEffect(() => {
+    fetch("http://localhost:5001/products")
+      .then((res) => res.json())
+      .then((data) => setProducts(data))
+      .catch((err) => console.error("Error fetching products:", err));
+  }, []);
 
   const getQuantity = (id) => {
     const item = cart.find((item) => item.id === id);
@@ -96,8 +86,12 @@ export default function Home({ cart, setCart }) {
                 {product.name}
               </h2>
 
-              {/* Price + Quantity Controls (same line) */}
-              <div className="flex justify-between items-center mt-2">
+              <p className="text-sm text-gray-600 mt-1">
+                {product.description}
+              </p>
+
+              {/* Price + Quantity Controls */}
+              <div className="flex justify-between items-center mt-3">
                 <p className="text-blue-600 font-bold">
                   ${product.price}
                 </p>
@@ -123,7 +117,7 @@ export default function Home({ cart, setCart }) {
                 </div>
               </div>
 
-              {/* Add to Cart Button (Underneath) */}
+              {/* Add to Cart */}
               <button
                 onClick={() => addToCart(product)}
                 className="mt-4 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
