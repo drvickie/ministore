@@ -11,9 +11,20 @@ const cookieParser = require("cookie-parser");
 const app = express();
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-app.use(cors());
+// ✅ Secure CORS (only allow your frontend)
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL,
+    credentials: true,
+  })
+);
+
 app.use(cookieParser());
 app.use(express.json());
+
+/* =========================
+   AUTH ROUTES
+========================= */
 
 app.post("/register", async (req, res) => {
   const { name, email, password } = req.body;
@@ -51,13 +62,6 @@ app.post("/register", async (req, res) => {
   }
 });
 
-app.get("/", (req, res) => {
-  res.status(200).send("Ministore backend is running");
-});
-app.get("/products", (req, res) => {
-  res.status(200).json(products);
-});
-
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
@@ -91,6 +95,8 @@ app.post("/login", async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
+      secure: false, // ⚠️ change to true in production (HTTPS)
+      sameSite: "lax",
     });
 
     res.json({ message: "Login successful" });
@@ -113,6 +119,10 @@ app.get("/me", async (req, res) => {
       where: { id: decoded.userId },
     });
 
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
     res.json({
       id: user.id,
       email: user.email,
@@ -122,7 +132,21 @@ app.get("/me", async (req, res) => {
   }
 });
 
+/* =========================
+   PRODUCTS
+========================= */
 
+app.get("/", (req, res) => {
+  res.status(200).send("Ministore backend is running");
+});
+
+app.get("/products", (req, res) => {
+  res.status(200).json(products);
+});
+
+/* =========================
+   STRIPE
+========================= */
 
 app.post("/create-checkout-session", async (req, res) => {
   const { cart, vatAmount } = req.body;
@@ -139,7 +163,6 @@ app.post("/create-checkout-session", async (req, res) => {
       quantity: item.quantity,
     }));
 
-    // VAT as a separate line item
     lineItems.push({
       price_data: {
         currency: "usd",
@@ -166,8 +189,11 @@ app.post("/create-checkout-session", async (req, res) => {
   }
 });
 
+/* =========================
+   SERVER
+========================= */
+
 const PORT = 5001;
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
 });
-//Test the APIs
