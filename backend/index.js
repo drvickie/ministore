@@ -170,3 +170,4 @@ const PORT = 5001;
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
 });
+//Test the APIs
