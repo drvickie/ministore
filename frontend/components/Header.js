@@ -54,10 +54,26 @@ export default function Header({ cart, user }) {
         </a>
 
         {user ? (
-          <span className="text-sm bg-gray-100 px-3 py-1 rounded">
-            {user.email}
-          </span>
-        ) : (
+  <div className="flex items-center gap-3">
+    <span className="text-sm bg-gray-100 px-3 py-1 rounded">
+      {user.email}
+    </span>
+
+    <button
+      onClick={async () => {
+        await fetch("http://localhost:5001/logout", {
+          method: "POST",
+          credentials: "include",
+        });
+
+        window.location.reload();
+      }}
+      className="text-red-600 hover:underline text-sm"
+    >
+      Logout
+    </button>
+  </div>
+) : (
           <div className="flex gap-3">
             <a
               href="/login"

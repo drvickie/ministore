@@ -274,6 +274,16 @@ app.post("/webhook", async (req, res) => {
   res.json({ received: true });
 });
 
+app.post("/logout", (req, res) => {
+  res.clearCookie("token", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: false, // true in production
+  });
+
+  res.json({ message: "Logged out" });
+});
+
 /* =========================
    SERVER
 ========================= */
