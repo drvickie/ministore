@@ -38,20 +38,32 @@ export default function Cart({ cart, setCart }) {
   const vatAmount = subtotal * VAT_RATE;
   const total = subtotal + vatAmount;
 
-  const handleCheckout = async () => {
-    const response = await fetch(
-      "http://localhost:5001/create-checkout-session",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ cart, vatAmount }),
-      }
-    );
-
-    const data = await response.json();
-    window.location.href = data.url;
+  // ✅ UPDATED CHECKOUT FUNCTION ONLY
+  const handleCheckout = () => {
+    fetch("http://localhost:5001/create-checkout-session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include", // 🔥 IMPORTANT
+      body: JSON.stringify({
+        cart,
+        vatAmount,
+      }),
+    })
+      .then(async (res) => {
+        if (res.status === 401) {
+          alert("Please login to continue");
+          window.location.href = "/login";
+          return;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data?.url) {
+          window.location.href = data.url;
+        }
+      });
   };
 
   if (cart.length === 0) {
