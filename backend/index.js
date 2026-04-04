@@ -102,6 +102,7 @@ app.post("/login", async (req, res) => {
       httpOnly: true,
       secure: false, // ⚠️ change to true in production (HTTPS)
       sameSite: "lax",
+      path: "/", // 🔥 MUST MATCH logout
     });
 
     res.json({ message: "Login successful" });
@@ -278,10 +279,11 @@ app.post("/logout", (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
     sameSite: "lax",
-    secure: false, // true in production
+    secure: false,
+    path: "/", // 🔥 VERY IMPORTANT
   });
 
-  res.json({ message: "Logged out" });
+  res.status(200).json({ message: "Logged out" });
 });
 
 /* =========================

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 
-export default function Header({ cart, user }) {
+export default function Header({ cart, user, setUser }) {
   const [searchTerm, setSearchTerm] = useState("");
   const router = useRouter();
 
@@ -12,6 +12,16 @@ export default function Header({ cart, user }) {
     router.push(`/?search=${searchTerm}`);
     setSearchTerm("");
   };
+
+  const handleLogout = async () => {
+  await fetch("http://localhost:5001/logout", {
+    method: "POST",
+    credentials: "include",
+  });
+
+  setUser(null); // ✅ Clear user instantly
+  router.push("/"); // ✅ Redirect cleanly
+};
 
   return (
     <div className="bg-white shadow px-6 py-4 flex items-center justify-between">
@@ -54,26 +64,19 @@ export default function Header({ cart, user }) {
         </a>
 
         {user ? (
-  <div className="flex items-center gap-3">
-    <span className="text-sm bg-gray-100 px-3 py-1 rounded">
-      {user.email}
-    </span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm bg-gray-100 px-3 py-1 rounded">
+              {user.email}
+            </span>
 
-    <button
-      onClick={async () => {
-        await fetch("http://localhost:5001/logout", {
-          method: "POST",
-          credentials: "include",
-        });
-
-        window.location.reload();
-      }}
-      className="text-red-600 hover:underline text-sm"
-    >
-      Logout
-    </button>
-  </div>
-) : (
+            <button
+              onClick={handleLogout}
+              className="text-red-600 text-sm hover:underline"
+            >
+              Logout
+            </button>
+          </div>
+        ) : (
           <div className="flex gap-3">
             <a
               href="/login"

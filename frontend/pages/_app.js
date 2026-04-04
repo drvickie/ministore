@@ -31,7 +31,7 @@ export default function App({ Component, pageProps }) {
 
   return (
     <>
-      <Header cart={cart} user={user} />
+      <Header cart={cart} user={user} setUser={setUser} />
       <Component
         {...pageProps}
         cart={cart}
