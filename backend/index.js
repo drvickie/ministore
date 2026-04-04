@@ -21,6 +21,10 @@ app.use(
 );
 
 app.use(cookieParser());
+app.use(
+  "/webhook",
+  express.raw({ type: "application/json" })
+);
 app.use(express.json());
 
 /* =========================
@@ -230,6 +234,45 @@ app.post(
     }
   }
 );
+
+app.post("/webhook", async (req, res) => {
+  const sig = req.headers["stripe-signature"];
+
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error("Webhook signature error:", err.message);
+    return res.sendStatus(400);
+  }
+
+  // ✅ Handle successful payment
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+
+    try {
+      await prisma.order.updateMany({
+        where: {
+          stripeSessionId: session.id,
+        },
+        data: {
+          status: "paid",
+        },
+      });
+
+      console.log("✅ Order marked as PAID");
+    } catch (error) {
+      console.error("DB update error:", error);
+    }
+  }
+
+  res.json({ received: true });
+});
 
 /* =========================
    SERVER
