@@ -146,50 +146,90 @@ app.get("/products", (req, res) => {
 });
 
 /* =========================
-   STRIPE
+   STRIPE + ORDERS
 ========================= */
 
-app.post("/create-checkout-session",authMiddleware, // 🔐 PROTECTION ADDED, 
-async (req, res) => {
-  const { cart, vatAmount } = req.body;
+app.post(
+  "/create-checkout-session",
+  authMiddleware,
+  async (req, res) => {
+    const { cart, vatAmount } = req.body;
 
-  try {
-    const lineItems = cart.map((item) => ({
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: item.name,
+    try {
+      // ✅ Calculate totals (never trust frontend)
+      const subtotal = cart.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      );
+
+      const total = subtotal + vatAmount;
+
+      // ✅ Create order in DB
+      const order = await prisma.order.create({
+        data: {
+          userId: req.userId,
+          subtotal,
+          vat: vatAmount,
+          total,
+          items: {
+            create: cart.map((item) => ({
+              productId: item.id,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+            })),
+          },
         },
-        unit_amount: Math.round(item.price * 100),
-      },
-      quantity: item.quantity,
-    }));
+      });
 
-    lineItems.push({
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: "VAT (7.5%)",
+      // ✅ Create Stripe line items
+      const lineItems = cart.map((item) => ({
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: item.name,
+          },
+          unit_amount: Math.round(item.price * 100),
         },
-        unit_amount: Math.round(vatAmount * 100),
-      },
-      quantity: 1,
-    });
+        quantity: item.quantity,
+      }));
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: lineItems,
-      mode: "payment",
-      success_url: `${process.env.CLIENT_URL}/success`,
-      cancel_url: `${process.env.CLIENT_URL}/cart`,
-    });
+      // VAT line
+      lineItems.push({
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: "VAT (7.5%)",
+          },
+          unit_amount: Math.round(vatAmount * 100),
+        },
+        quantity: 1,
+      });
 
-    res.json({ url: session.url });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Payment failed" });
+      // ✅ Create Stripe session
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: lineItems,
+        mode: "payment",
+        success_url: `${process.env.CLIENT_URL}/success`,
+        cancel_url: `${process.env.CLIENT_URL}/cart`,
+      });
+
+      // ✅ Save Stripe session ID
+      await prisma.order.update({
+        where: { id: order.id },
+        data: {
+          stripeSessionId: session.id,
+        },
+      });
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Payment failed" });
+    }
   }
-});
+);
 
 /* =========================
    SERVER
