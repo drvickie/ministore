@@ -7,6 +7,7 @@ const prisma = require("./lib/prisma");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
+const authMiddleware = require("./middleware/auth");
 
 const app = express();
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
@@ -148,7 +149,8 @@ app.get("/products", (req, res) => {
    STRIPE
 ========================= */
 
-app.post("/create-checkout-session", async (req, res) => {
+app.post("/create-checkout-session",authMiddleware, // 🔐 PROTECTION ADDED, 
+async (req, res) => {
   const { cart, vatAmount } = req.body;
 
   try {
