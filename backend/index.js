@@ -8,6 +8,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 const authMiddleware = require("./middleware/auth");
+app.use(require("helmet")());
 
 const app = express();
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
@@ -20,11 +21,12 @@ app.use(
   })
 );
 
-app.use(cookieParser());
+
 app.use(
   "/webhook",
   express.raw({ type: "application/json" })
 );
+app.use(cookieParser());
 app.use(express.json());
 
 /* =========================
@@ -237,6 +239,7 @@ app.post(
 );
 
 app.post("/webhook", async (req, res) => {
+  console.log("🔥 Webhook hit");
   const sig = req.headers["stripe-signature"];
 
   let event;
@@ -254,6 +257,7 @@ app.post("/webhook", async (req, res) => {
 
   // ✅ Handle successful payment
   if (event.type === "checkout.session.completed") {
+    console.log("💰 Payment success event");
     const session = event.data.object;
 
     try {
