@@ -8,9 +8,10 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 const authMiddleware = require("./middleware/auth");
-app.use(require("helmet")());
+
 
 const app = express();
+app.use(require("helmet")());
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 // ✅ Secure CORS (only allow your frontend)
