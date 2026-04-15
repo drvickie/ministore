@@ -1,32 +1,42 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 
-export default function Login() {
+export default function Login({ setUser }) {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+const handleLogin = async (e) => {
+  e.preventDefault();
 
-    const res = await fetch("http://localhost:5001/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include", // 🔥 IMPORTANT
-      body: JSON.stringify({ email, password }),
-    });
+  const res = await fetch("http://localhost:5001/login", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ email, password }),
+  });
 
-    const data = await res.json();
+  if (!res.ok) {
+    alert("Login failed");
+    return;
+  }
 
-    if (res.ok) {
-      router.push("/"); // redirect to store
-    } else {
-      alert(data.error || "Login failed");
-    }
-  };
+  // ✅ Immediately fetch user
+  const userRes = await fetch("http://localhost:5001/me", {
+    credentials: "include",
+  });
+
+  const userData = await userRes.json();
+
+  // ✅ Update global state
+  setUser(userData);
+
+  // ✅ Redirect
+  router.push("/");
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
