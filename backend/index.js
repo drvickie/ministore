@@ -36,6 +36,16 @@ const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 app.use(helmet());
 
+const { Pool } = require('pg');
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: false }
+    : false
+});
+
+module.exports = pool;
 // ✅ Secure CORS
 app.use(
   cors({
