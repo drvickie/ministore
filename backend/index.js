@@ -1,4 +1,5 @@
 require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const Stripe = require("stripe");
@@ -7,14 +8,35 @@ const prisma = require("./lib/prisma");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 const authMiddleware = require("./middleware/auth");
 
 
 const app = express();
-app.use(require("helmet")());
+
+/* =========================
+   ENV VALIDATION
+========================= */
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET is missing");
+}
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error("STRIPE_SECRET_KEY is missing");
+}
+if (!process.env.CLIENT_URL) {
+  throw new Error("CLIENT_URL is missing");
+}
+
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// ✅ Secure CORS (only allow your frontend)
+/* =========================
+   MIDDLEWARE
+========================= */
+
+app.use(helmet());
+
+// ✅ Secure CORS
 app.use(
   cors({
     origin: process.env.CLIENT_URL,
@@ -22,13 +44,26 @@ app.use(
   })
 );
 
+// ✅ Rate limiting (protect auth routes)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+});
+app.use("/login", authLimiter);
+app.use("/register", authLimiter);
 
-app.use(
-  "/webhook",
-  express.raw({ type: "application/json" })
-);
+// ✅ Stripe webhook MUST be raw
+app.use("/webhook", express.raw({ type: "application/json" }));
+
 app.use(cookieParser());
 app.use(express.json());
+
+/* =========================
+   HEALTH CHECK
+========================= */
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
+});
 
 /* =========================
    AUTH ROUTES
@@ -36,6 +71,10 @@ app.use(express.json());
 
 app.post("/register", async (req, res) => {
   const { name, email, password } = req.body;
+
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
 
   try {
     const existingUser = await prisma.user.findUnique({
@@ -66,12 +105,17 @@ app.post("/register", async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Register error:", error);
     res.status(500).json({ error: "Registration failed" });
   }
 });
 
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
 
   try {
     const user = await prisma.user.findUnique({
@@ -103,13 +147,15 @@ app.post("/login", async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: false, // ⚠️ change to true in production (HTTPS)
-      sameSite: "lax",
-      path: "/", // 🔥 MUST MATCH logout
+      secure: process.env.NODE_ENV === "production",
+      sameSite:
+        process.env.NODE_ENV === "production" ? "none" : "lax",
+      path: "/",
     });
 
     res.json({ message: "Login successful" });
   } catch (error) {
+    console.error("Login error:", error);
     res.status(500).json({ error: "Login failed" });
   }
 });
@@ -137,6 +183,7 @@ app.get("/me", async (req, res) => {
       email: user.email,
     });
   } catch (error) {
+    console.error("Auth error:", error);
     res.status(401).json({ error: "Invalid token" });
   }
 });
@@ -163,16 +210,21 @@ app.post(
   async (req, res) => {
     const { cart, vatAmount } = req.body;
 
+    if (!cart || !Array.isArray(cart)) {
+      return res.status(400).json({ error: "Invalid cart" });
+    }
+
     try {
-      // ✅ Calculate totals (never trust frontend)
-      const subtotal = cart.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0
-      );
+      // ✅ NEVER trust frontend prices
+      const subtotal = cart.reduce((sum, item) => {
+        const product = products.find((p) => p.id === item.id);
+        if (!product) return sum;
+        return sum + product.price * item.quantity;
+      }, 0);
 
       const total = subtotal + vatAmount;
 
-      // ✅ Create order in DB
+      
       const order = await prisma.order.create({
         data: {
           userId: req.userId,
@@ -190,31 +242,34 @@ app.post(
         },
       });
 
-      // ✅ Create Stripe line items
-      const lineItems = cart.map((item) => ({
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: item.name,
+      const lineItems = cart.map((item) => {
+        const product = products.find((p) => p.id === item.id);
+
+        return {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: product.name,
+            },
+            unit_amount: Math.round(product.price * 100),
           },
-          unit_amount: Math.round(item.price * 100),
-        },
-        quantity: item.quantity,
-      }));
+          quantity: item.quantity,
+        };
+      });
 
       // VAT line
       lineItems.push({
         price_data: {
           currency: "usd",
           product_data: {
-            name: "VAT (7.5%)",
+            name: "VAT",
           },
           unit_amount: Math.round(vatAmount * 100),
         },
         quantity: 1,
       });
 
-      // ✅ Create Stripe session
+
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
         line_items: lineItems,
@@ -223,7 +278,7 @@ app.post(
         cancel_url: `${process.env.CLIENT_URL}/cart`,
       });
 
-      // ✅ Save Stripe session ID
+
       await prisma.order.update({
         where: { id: order.id },
         data: {
@@ -233,14 +288,18 @@ app.post(
 
       res.json({ url: session.url });
     } catch (error) {
-      console.error(error);
+      console.error("Checkout error:", error);
       res.status(500).json({ error: "Payment failed" });
     }
   }
 );
 
+/* =========================
+   STRIPE WEBHOOK
+========================= */
+
 app.post("/webhook", async (req, res) => {
-  console.log("🔥 Webhook hit");
+
   const sig = req.headers["stripe-signature"];
 
   let event;
@@ -256,9 +315,9 @@ app.post("/webhook", async (req, res) => {
     return res.sendStatus(400);
   }
 
-  // ✅ Handle successful payment
+
   if (event.type === "checkout.session.completed") {
-    console.log("💰 Payment success event");
+
     const session = event.data.object;
 
     try {
@@ -271,7 +330,6 @@ app.post("/webhook", async (req, res) => {
         },
       });
 
-      console.log("✅ Order marked as PAID");
     } catch (error) {
       console.error("DB update error:", error);
     }
@@ -280,22 +338,37 @@ app.post("/webhook", async (req, res) => {
   res.json({ received: true });
 });
 
+/* =========================
+   LOGOUT
+========================= */
+
 app.post("/logout", (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
-    sameSite: "lax",
-    secure: false,
-    path: "/", // 🔥 VERY IMPORTANT
+    sameSite:
+      process.env.NODE_ENV === "production" ? "none" : "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
   });
 
   res.status(200).json({ message: "Logged out" });
 });
 
 /* =========================
+   GLOBAL ERROR HANDLER
+========================= */
+
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err.stack);
+  res.status(500).send("Something broke!");
+});
+
+/* =========================
    SERVER
 ========================= */
 
-const PORT = 5001;
+const PORT = process.env.PORT || 5001;
+
 app.listen(PORT, () => {
-  console.log(`Backend running on http://localhost:${PORT}`);
+  console.log(`Backend running on port ${PORT}`);
 });
