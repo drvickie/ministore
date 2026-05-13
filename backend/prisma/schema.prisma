@@ -1,11 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
   provider = "postgresql"
-  
 }
 
 model User {
@@ -15,32 +14,28 @@ model User {
   password  String
   role      String   @default("customer")
   createdAt DateTime @default(now())
-
-  // ✅ Relation to orders
   orders    Order[]
 }
 
 model Order {
   id              Int         @id @default(autoincrement())
   userId          Int
-  user            User        @relation(fields: [userId], references: [id])
   subtotal        Float
   vat             Float
   total           Float
   status          String      @default("pending")
   stripeSessionId String?
   createdAt       DateTime    @default(now())
-
-  // ✅ Relation to order items
+  user            User        @relation(fields: [userId], references: [id])
   items           OrderItem[]
 }
 
 model OrderItem {
-  id        Int     @id @default(autoincrement())
+  id        Int    @id @default(autoincrement())
   orderId   Int
-  order     Order   @relation(fields: [orderId], references: [id])
   productId Int
   name      String
   price     Float
   quantity  Int
+  order     Order  @relation(fields: [orderId], references: [id])
 }
